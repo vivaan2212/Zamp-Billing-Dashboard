@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const result = await query(`
       SELECT 
         c.name AS client_name,
-        c.slug,
+        c.schema_name AS slug,
         m.period_year,
         m.period_month,
         m.done_runs,
