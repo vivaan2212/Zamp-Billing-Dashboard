@@ -411,3 +411,69 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+// ── Pending Changes Panel ──────────────────────────────────────────────────
+function ChangesPanel({
+  changes,
+  onAction,
+}: {
+  changes: ChangeRequest[]
+  onAction: (id: number, action: 'approved' | 'rejected') => Promise<void>
+}) {
+  const pending = changes.filter((c) => c.status === 'pending')
+  const history = changes.filter((c) => c.status !== 'pending')
+
+  function statusBadge(s: string) {
+    if (s === 'approved') return 'bg-emerald-900/40 text-emerald-300 border border-emerald-700'
+    if (s === 'rejected') return 'bg-red-900/40 text-red-300 border border-red-700'
+    return 'bg-yellow-900/40 text-yellow-300 border border-yellow-700'
+  }
+
+  return (
+    <div className="space-y-4">
+      {pending.length === 0 ? (
+        <p className="text-sm text-zinc-500 text-center py-4">No pending changes</p>
+      ) : (
+        <div className="space-y-3">
+          {pending.map((cr) => (
+            <div key={cr.id} className="bg-zinc-900 border border-yellow-700/50 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-white text-sm">{cr.client_name}</span>
+                <span className="text-xs text-zinc-400">{new Date(cr.requested_at).toLocaleDateString()}</span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                <span className="text-zinc-300">{cr.field_name}</span>: ${cr.old_value} → ${cr.new_value}
+              </p>
+              {cr.reason && <p className="text-xs text-zinc-500 italic">{cr.reason}</p>}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => onAction(cr.id, 'approved')}
+                  className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg py-1.5 transition-colors"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => onAction(cr.id, 'rejected')}
+                  className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg py-1.5 transition-colors"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {history.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-500 uppercase tracking-wide">History</p>
+          {history.slice(0, 5).map((cr) => (
+            <div key={cr.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex items-center justify-between">
+              <span className="text-xs text-zinc-400">{cr.client_name} — {cr.field_name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded ${statusBadge(cr.status)}`}>{cr.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
