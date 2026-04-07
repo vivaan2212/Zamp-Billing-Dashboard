@@ -8,10 +8,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: 'action must be approved or rejected' }, { status: 400 })
     }
 
-    // Update status
     const updated = await query(`
       UPDATE billing_change_requests
-      SET status = $1, reviewed_at = now(), reviewed_by = $2
+      SET status = $1, updated_at = now(), reviewed_by = $2
       WHERE id = $3 RETURNING *
     `, [action, reviewed_by || 'admin', params.id])
 
@@ -21,22 +20,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const cr = updated.rows[0]
 
-    // If approved, apply the change to billing_config
     if (action === 'approved') {
       if (cr.field_name === 'rate_per_run') {
-        // Deactivate current config
-        await query(`UPDATE billing_config SET is_active = false WHERE client_id = $1 AND is_active = true`, [cr.client_id])
-        // Insert new config row
+        await query(`UPDATE billing_config SET status = 'superseded' WHERE client_id = $1 AND status = 'active'`, [cr.client_id])
         await query(`
-          INSERT INTO billing_config (client_id, rate_per_run, minimum_fee, effective_from, is_active)
-          SELECT $1, $2, minimum_fee, now(), true
+          INSERT INTO billing_config (client_id, rate_per_run, minimum_commitment, effective_from, status, created_by)
+          SELECT $1, $2, minimum_commitment, now(), 'active', 'dashboard'
           FROM billing_config WHERE client_id = $1 ORDER BY effective_from DESC LIMIT 1
         `, [cr.client_id, parseFloat(cr.new_value)])
-      } else if (cr.field_name === 'minimum_fee') {
-        await query(`UPDATE billing_config SET is_active = false WHERE client_id = $1 AND is_active = true`, [cr.client_id])
+      } else if (cr.field_name === 'minimum_commitment') {
+        await query(`UPDATE billing_config SET status = 'superseded' WHERE client_id = $1 AND status = 'active'`, [cr.client_id])
         await query(`
-          INSERT INTO billing_config (client_id, rate_per_run, minimum_fee, effective_from, is_active)
-          SELECT $1, rate_per_run, $2, now(), true
+          INSERT INTO billing_config (client_id, rate_per_run, minimum_commitment, effective_from, status, created_by)
+          SELECT $1, rate_per_run, $2, now(), 'active', 'dashboard'
           FROM billing_config WHERE client_id = $1 ORDER BY effective_from DESC LIMIT 1
         `, [cr.client_id, parseFloat(cr.new_value)])
       }
